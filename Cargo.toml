@@ -1,0 +1,17 @@
+[package]
+name = "WebSocket-EchoServer"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+
+futures-util = { version = "0.3", default-features = false, features = ["sink"] }
+http = "0.2.9"
+serde_json = "1.0.78"
+tokio = { version = "1.21.2", features = ["full"] }
+tokio-tungstenite = "0.23.1"
+tracing = "0.1.4"
+tracing-subscriber = "0.3.18"
+url = "2.2.2"
+uuid = { version = "1.1.2", features = ["serde", "v4"] }
+warp = "0.3.6"
