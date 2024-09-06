@@ -38,12 +38,7 @@ use tokio::net::TcpListener;
 mod messages;
 
 use messages::{
-    LocationCoordinatesSchema,
-    LocationType,
-    LocationSchema,
-    RegionSchema,
-    GeoTagSchema,
-    ChatMessageSchema,
+    ChatMessageSchema, GeoTagSchema, GetChatMessagesResponse, LocationCoordinatesSchema, LocationSchema, LocationType, RegionSchema, SearchChatMessagesRequest
 };
 
 pub const WS_UNCLASSIFIED_URL: &str = "wss://localhost:3030/root";
@@ -94,7 +89,12 @@ fn build_geotag_array(seed: i32) -> [messages::GeoTagSchema; messages::MAX_MESSA
     new_array
 }
 
-fn build_chat_message(seed: i32) -> messages::ChatMessageSchema {
+fn build_chat_message
+(
+    seed: i32,
+    new_name: &str,
+    additional_text: &str,
+) -> messages::ChatMessageSchema {
 
     let new_message: messages::ChatMessageSchema = messages::ChatMessageSchema {
         classification: String::from(UNCLASSIFIED_STRING),
@@ -102,8 +102,10 @@ fn build_chat_message(seed: i32) -> messages::ChatMessageSchema {
         geoTags:        build_geotag_array(seed),
         id:             Uuid::new_v4(),
         roomName:       String::from("Test room"),
-        sender:         String::from("Austin"),
-        text:           String::from("This is some test message text."),
+        sender:         String::from(new_name),
+        text:           String::from(format!("{}{}", 
+            "This is some test message text.",
+            additional_text)),
         threadId:       Uuid::new_v4(),
         timestamp:      Utc::now().to_string(),
         userId:         Uuid::new_v4()
@@ -115,7 +117,16 @@ fn build_chat_message(seed: i32) -> messages::ChatMessageSchema {
 fn build_get_messages_response() -> messages::GetChatMessagesResponse {
     let mut messages = Vec::new();
 
-    messages.push(build_chat_message(25));
+    messages.push(build_chat_message(25, "Austin", ""));
+    messages.push(build_chat_message(4, "Tyler", ""));
+    messages.push(build_chat_message(7, "Joe", "test_keyword"));
+    messages.push(build_chat_message(9, "Jeremy", ""));
+    messages.push(build_chat_message(2, "Trevor", ""));
+    messages.push(build_chat_message(4, "Justin", "test_keyword"));
+    messages.push(build_chat_message(97856, "Ryan", ""));
+    messages.push(build_chat_message(123, "Joseph", ""));
+    messages.push(build_chat_message(432, "Rita", ""));
+    messages.push(build_chat_message(654, "Matt", ""));
 
 
     messages::GetChatMessagesResponse {
@@ -155,6 +166,34 @@ async fn request_handler(req: Request<hyper::body::Incoming>) -> Result<Response
             
             Ok(Response::new(boxed))
         }
+        // (&Method::POST, "/api/chat/messages/search") => {
+        //     event!(Level::DEBUG, "Caught the POST Request");
+
+        //     let whole_body = req.body().collect().await?.to_bytes();
+
+        //     let (head, body, _tail) = unsafe { whole_body.align_to::<SearchChatMessagesRequest>() };
+
+        //     let search_request: SearchChatMessagesRequest = body[0];
+        //     event!(Level::DEBUG, "Search request: {}", search_request);
+
+
+
+        //     // Construct test chat message objects to send back to the client.
+        //     //response = build_get_messages_response();
+
+        //     //let trimmed_response: messages::GetChatMessagesResponse = GetChatMessagesResponse::new();
+
+        //     // for message in response.messages {
+        //     //     if message.text.contains(req.k)
+        //     // }
+
+            
+        //     let boxed = Full::new(String::from("Unimplemented").into())
+        //     .map_err(|never| match never {})
+        //     .boxed();
+        
+        // Ok(Response::new(boxed))
+        // }
         _ => {
             event!(Level::DEBUG, "NOT FOUND");
             let mut not_found = Response::new(empty());
@@ -163,8 +202,6 @@ async fn request_handler(req: Request<hyper::body::Incoming>) -> Result<Response
             Ok(not_found)
         }
     }
-
-
 }
 
 #[tokio::main]
@@ -199,5 +236,4 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
             }
         });
     }
-
 }
