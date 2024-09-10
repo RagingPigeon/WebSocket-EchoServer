@@ -1,7 +1,12 @@
-use std::{panic::Location, str::FromStr};
+use std::{
+    collections::HashMap,
+    fmt,
+    panic::Location,
+    str::FromStr
+};
 
 use chrono::{ Date, DateTime, Utc };
-use std::fmt;
+
 //use strum::Display;
 use serde::{ Deserialize, Serialize };
 use strum_macros::{ EnumString, Display };
@@ -541,7 +546,7 @@ pub struct SearchRoomsResponse {
 // =============================================================================
 #[derive(Serialize, Deserialize)]
 pub struct KeywordFilter {
-    query: String
+    pub query: String
 }
 
 /*
@@ -567,7 +572,6 @@ impl KeywordFilter {
 // =============================================================================
 // struct TimeFilter
 // =============================================================================
-#[derive(Serialize, Deserialize)]
 /*
  * This struct contains fields that can be used as filters when searching
  * for chat messages within a ChatSurfer chat room.
@@ -576,6 +580,7 @@ impl KeywordFilter {
  * ChatSurfer's perspective.  So when determining the validity of a search
  * request, these fields should be allowed to be ignored.
  */
+#[derive(Serialize, Deserialize)]
 pub struct TimeFilter {
     endDateTime:        String, //This string needs to be in DateTime format.
     lookBackDuration:   String,
@@ -628,13 +633,52 @@ impl TimeFilter {
 }
 
 // =============================================================================
+// struct RoomFilter
+// =============================================================================
+#[derive(Serialize, Deserialize)]
+struct RoomFilterDomainProperties {
+    properties: Vec<String>,
+}
+
+impl RoomFilterDomainProperties {
+    pub fn from_vec(new_properties: Vec<String>) -> RoomFilterDomainProperties {
+        RoomFilterDomainProperties {
+            properties: new_properties
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct RoomFilter {
+    domains: HashMap<String, RoomFilterDomainProperties>,
+}
+
+impl RoomFilter {
+    // pub fn add_domain
+    // (
+    //     &self,
+    //     domainId:   &str,
+    //     names:      Vec<String>
+    // ) {
+    //     self.domains.insert(String::from(domainId), names);
+    // }
+
+    // pub fn new() -> RoomFilter {
+    //     RoomFilter {
+    //         domains:    HashMap::new(),
+    //     }
+    // }
+}
+
+// =============================================================================
 // struct SearchChatMessagesRequest
 // =============================================================================
 #[derive(Serialize, Deserialize)]
 pub struct SearchChatMessagesRequest {
-    keywordFilter:  KeywordFilter,
-    limit:          i32,
-    timeFilter:     TimeFilter,
+    pub keywordFilter:  KeywordFilter,
+    pub limit:          i32,
+    //roomFilter:     RoomFilter,
+    //pub timeFilter:     TimeFilter,
 }
 
 /*
@@ -671,11 +715,11 @@ impl SearchChatMessagesRequest {
 // =============================================================================
 #[derive(Serialize, Deserialize)]
 pub struct SearchChatMessagesResponse {
-    classification:     String,
-    messages:           Vec<ChatMessageSchema>,
-    nextCursorMark:     String,
-    searchTimeFiler:    TimeFilter,
-    total:              i32,
+    pub classification:     String,
+    pub messages:           Vec<ChatMessageSchema>,
+    pub nextCursorMark:     String,
+    pub searchTimeFiler:    TimeFilter,
+    pub total:              i32,
 }
 
 /*

@@ -166,34 +166,34 @@ async fn request_handler(req: Request<hyper::body::Incoming>) -> Result<Response
             
             Ok(Response::new(boxed))
         }
-        // (&Method::POST, "/api/chat/messages/search") => {
-        //     event!(Level::DEBUG, "Caught the POST Request");
+        (&Method::POST, "/api/chat/messages/search") => {
+            event!(Level::DEBUG, "Caught the POST Request");
 
-        //     let whole_body = req.body().collect().await?.to_bytes();
+            let whole_body = req.body().collect().await?.to_bytes();
 
-        //     let (head, body, _tail) = unsafe { whole_body.align_to::<SearchChatMessagesRequest>() };
+            let (head, body, _tail) = unsafe { whole_body.align_to::<SearchChatMessagesRequest>() };
 
-        //     let search_request: SearchChatMessagesRequest = body[0];
-        //     event!(Level::DEBUG, "Search request: {}", search_request);
+            let search_request: SearchChatMessagesRequest = body[0];
+            event!(Level::DEBUG, "Search request: {}", search_request);
 
 
 
-        //     // Construct test chat message objects to send back to the client.
-        //     //response = build_get_messages_response();
+            //Construct test chat message objects to send back to the client.
+            response = build_get_messages_response();
 
-        //     //let trimmed_response: messages::GetChatMessagesResponse = GetChatMessagesResponse::new();
+            let trimmed_response: messages::GetChatMessagesResponse = GetChatMessagesResponse::new();
 
-        //     // for message in response.messages {
-        //     //     if message.text.contains(req.k)
-        //     // }
+            for message in response.messages {
+                if message.text.contains(req.k)
+            }
 
             
-        //     let boxed = Full::new(String::from("Unimplemented").into())
-        //     .map_err(|never| match never {})
-        //     .boxed();
+            let boxed = Full::new(String::from("Unimplemented").into())
+            .map_err(|never| match never {})
+            .boxed();
         
-        // Ok(Response::new(boxed))
-        // }
+        Ok(Response::new(boxed))
+        }
         _ => {
             event!(Level::DEBUG, "NOT FOUND");
             let mut not_found = Response::new(empty());
