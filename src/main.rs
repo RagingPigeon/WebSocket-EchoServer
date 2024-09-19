@@ -1,5 +1,6 @@
 // General and standard crates
 use chrono::{ Date, DateTime, Utc };
+use clap::Parser;
 use futures::{SinkExt, StreamExt};
 use std::str::FromStr;
 use std::{any, convert::Infallible, io, net::SocketAddr};
@@ -15,6 +16,13 @@ use tracing::{event, span, Level};
 use tracing_subscriber;
 
 // HTTP crates
+use axum::{
+    extract::Json,
+    handler::Handler,
+    response::Json as response_json,
+    Router,
+    routing::get,
+};
 use http_body_util::{
     combinators::BoxBody,
     BodyExt,
@@ -42,10 +50,11 @@ use messages::{
 };
 
 pub const WS_UNCLASSIFIED_URL: &str = "wss://localhost:3030/root";
-pub const HTTP_SERVE_GETALLMESSAGES_URL: &str = "127.0.0.1:7878";
+pub const DEFAULT_SERVE_IP: &str = "0.0.0.0";
+pub const DEFAULT_SERVE_PORT: i32 = 80;
 
 pub const UNCLASSIFIED_STRING: &str = "UNCLASSIFIED";
-pub const TEST_DOMAIN_ID: &str = "lowirc"; 
+pub const TEST_DOMAIN_ID: &str = "chatsurferxmppunclass"; 
 
 
 fn build_region_array
@@ -169,12 +178,12 @@ async fn request_handler(req: Request<hyper::body::Incoming>) -> Result<Response
         (&Method::POST, "/api/chat/messages/search") => {
             event!(Level::DEBUG, "Caught the POST Request");
 
-            let whole_body = req.body().collect().await?.to_bytes();
+            //let whole_body = req.body().collect().await?.to_bytes();
 
-            let (head, body, _tail) = unsafe { whole_body.align_to::<SearchChatMessagesRequest>() };
+            //let (head, body, _tail) = unsafe { whole_body.align_to::<SearchChatMessagesRequest>() };
 
-            let search_request: SearchChatMessagesRequest = body[0];
-            event!(Level::DEBUG, "Search request: {}", search_request);
+            //let search_request: SearchChatMessagesRequest = body[0];
+            //event!(Level::DEBUG, "Search request: {}", search_request);
 
 
 
@@ -184,7 +193,7 @@ async fn request_handler(req: Request<hyper::body::Incoming>) -> Result<Response
             let trimmed_response: messages::GetChatMessagesResponse = GetChatMessagesResponse::new();
 
             for message in response.messages {
-                if message.text.contains(req.k)
+                //if message.text.contains(req.k)
             }
 
             
@@ -204,36 +213,90 @@ async fn request_handler(req: Request<hyper::body::Incoming>) -> Result<Response
     }
 }
 
+/*
+ * This struct describes the possible arguments accepted by the
+ * WebSocket-TestServer service.
+ */
+#[derive(serde::Serialize)]
+#[derive(Parser, Debug)]
+struct Args {
+    // This field indicates the IP address from which to serve
+    // client requests.
+    #[arg(long = "client_serve_ip", default_value_t = String::from(DEFAULT_SERVE_IP))]
+    client_serve_ip:    String,
+    
+    // This field sets the port number from which to serve requests
+    // from a client.
+    #[arg(long = "client_port", default_value_t = DEFAULT_SERVE_PORT)]
+    client_port:        i32,
+}
+
+impl Args {
+    pub fn to_json(&self) -> String {
+        serde_json::to_string(self).unwrap()
+    }
+}
+
+async fn handle_users() -> response_json<GetChatMessagesResponse> {
+    event!(Level::DEBUG, "Received the Get Messages Request");
+    let response: messages::GetChatMessagesResponse;
+    response = build_get_messages_response();
+
+    event!(Level::DEBUG, "Sending the response");
+    response_json(response)
+}
+
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+//-> Result<(), Box<dyn std::error::Error + Send + Sync>>
+async fn main()  {
     tracing_subscriber::fmt()
         .with_max_level(tracing::Level::DEBUG)
         .init();
 
-    // Construct the address to host HTTP requests from.
-    let addr = SocketAddr::from_str(HTTP_SERVE_GETALLMESSAGES_URL).unwrap();
+    // Parse the command line arguments and log them.
+    let args = Args::parse();
+    event!(Level::DEBUG, "{}", args.to_json());
 
-    // Set up the HTTP listener.
-    let listener = TcpListener::bind(addr).await?;
+    // Construct the address string we're going to serve from.
+    let serve_address: String = format!("{}:{}", args.client_serve_ip, args.client_port);
 
-    // We start a loop to continuously accept incoming connections
-    loop {
-        let (stream, _) = listener.accept().await?;
 
-        // Use an adapter to access something implementing `tokio::io` traits as if they implement
-        // `hyper::rt` IO traits.
-        let io = TokioIo::new(stream);
+    let test_route = Router::new()
+        .route("/api/chat/messages/somedomain/Test_Room", get(handle_users));
 
-        // Spawn a tokio task to serve multiple connections concurrently
-        tokio::task::spawn(async move {
-            // Finally, we bind the incoming connection to our `hello` service
-            if let Err(err) = http1::Builder::new()
-                // `service_fn` converts our function in a `Service`
-                .serve_connection(io, service_fn(request_handler))
-                .await
-            {
-                eprintln!("Error serving connection: {:?}", err);
-            }
-        });
-    }
+    let axum_listener = tokio::net::TcpListener::bind(serve_address).await.unwrap();
+
+    axum::serve(axum_listener, test_route).await.unwrap();
+
+
+
+
+
+    // // Construct the address to host HTTP requests from.
+    // let serve_socket = SocketAddr::from_str(serve_address.as_str()).unwrap();
+
+    // // Set up the HTTP listener.
+    // let listener = TcpListener::bind(serve_socket).await?;
+
+    // // We start a loop to continuously accept incoming connections
+    // event!(Level::DEBUG, "Serving requests at {}", serve_address);
+    // loop {
+    //     let (stream, _) = listener.accept().await?;
+
+    //     // Use an adapter to access something implementing `tokio::io` traits as if they implement
+    //     // `hyper::rt` IO traits.
+    //     let io = TokioIo::new(stream);
+
+    //     // Spawn a tokio task to serve multiple connections concurrently
+    //     tokio::task::spawn(async move {
+    //         // Finally, we bind the incoming connection to our `hello` service
+    //         if let Err(err) = http1::Builder::new()
+    //             // `service_fn` converts our function in a `Service`
+    //             .serve_connection(io, service_fn(request_handler))
+    //             .await
+    //         {
+    //             eprintln!("Error serving connection: {:?}", err);
+    //         }
+    //     });
+    // }
 }

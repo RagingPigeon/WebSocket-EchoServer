@@ -6,6 +6,7 @@ edition = "2021"
 [dependencies]
 axum = "0.7"
 chrono = "0.4.38"
+clap = { version = "4", features = ["derive"] }
 futures = "0.3.30"
 futures-util = { version = "0.3", default-features = false, features = ["sink"] }
 http = "0.2.9"
