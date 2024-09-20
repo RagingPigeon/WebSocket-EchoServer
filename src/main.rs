@@ -17,11 +17,12 @@ use tracing_subscriber;
 
 // HTTP crates
 use axum::{
-    extract::Json,
+    extract::Json as extract_json,
     handler::Handler,
     response::Json as response_json,
     Router,
     routing::get,
+    routing::post,
 };
 use http_body_util::{
     combinators::BoxBody,
@@ -46,7 +47,8 @@ use tokio::net::TcpListener;
 mod messages;
 
 use messages::{
-    ChatMessageSchema, GeoTagSchema, GetChatMessagesResponse, LocationCoordinatesSchema, LocationSchema, LocationType, RegionSchema, SearchChatMessagesRequest
+    ChatMessageSchema, GeoTagSchema, GetChatMessagesResponse, LocationCoordinatesSchema, LocationSchema, LocationType, RegionSchema, SearchChatMessagesRequest,
+    SendChatMessageRequest,
 };
 
 pub const WS_UNCLASSIFIED_URL: &str = "wss://localhost:3030/root";
@@ -55,6 +57,9 @@ pub const DEFAULT_SERVE_PORT: i32 = 80;
 
 pub const UNCLASSIFIED_STRING: &str = "UNCLASSIFIED";
 pub const TEST_DOMAIN_ID: &str = "chatsurferxmppunclass"; 
+
+pub const MESSAGES_ROUTE: &str = "/api/chat/messages/somedomain/Test_Room";
+pub const NEW_MESSAGE_ROUTE: &str = "/api/chatserver/message";
 
 
 fn build_region_array
@@ -246,6 +251,12 @@ async fn handle_users() -> response_json<GetChatMessagesResponse> {
     response_json(response)
 }
 
+async fn handle_post_chat_message(extract_json(payload): extract_json<SendChatMessageRequest>) {
+
+    // Attempt to deserialize the request paylod.
+    event!(Level::DEBUG, "Received new message request: {}", payload);
+}
+
 #[tokio::main]
 //-> Result<(), Box<dyn std::error::Error + Send + Sync>>
 async fn main()  {
@@ -262,7 +273,9 @@ async fn main()  {
 
 
     let test_route = Router::new()
-        .route("/api/chat/messages/somedomain/Test_Room", get(handle_users));
+        .route(MESSAGES_ROUTE, get(handle_users))
+        .route(NEW_MESSAGE_ROUTE, post(handle_post_chat_message));
+
 
     let axum_listener = tokio::net::TcpListener::bind(serve_address).await.unwrap();
 
