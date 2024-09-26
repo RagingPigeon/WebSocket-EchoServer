@@ -13,6 +13,7 @@ http = "0.2.9"
 http-body-util = "0.1"
 hyper = { version = "1", features = ["full"] }
 hyper-util = { version = "0.1", features = ["full"] }
+rand = { version = "0.8" }
 routerify = "3.0.0"
 routerify-websocket = "3.0.0"
 serde = { version = "1.0.119", features = ["derive"] }

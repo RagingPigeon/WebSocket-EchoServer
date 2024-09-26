@@ -2,6 +2,8 @@
 use chrono::{ Date, DateTime, Utc };
 use clap::Parser;
 use futures::{SinkExt, StreamExt};
+use rand::prelude::*;
+use rand::Rng;
 use std::str::FromStr;
 use std::{any, convert::Infallible, io, net::SocketAddr};
 use std:: {
@@ -58,7 +60,7 @@ pub const DEFAULT_SERVE_PORT: i32 = 80;
 pub const UNCLASSIFIED_STRING: &str = "UNCLASSIFIED";
 pub const TEST_DOMAIN_ID: &str = "chatsurferxmppunclass"; 
 
-pub const MESSAGES_ROUTE: &str = "/api/chat/messages/somedomain/Test_Room";
+pub const MESSAGES_ROUTE: &str = "/api/chat/messages/chatsurferxmppunclass/Test_Room";
 pub const NEW_MESSAGE_ROUTE: &str = "/api/chatserver/message";
 
 
@@ -218,6 +220,62 @@ async fn request_handler(req: Request<hyper::body::Incoming>) -> Result<Response
     }
 }
 
+
+
+async fn handle_users() -> response_json<GetChatMessagesResponse> {
+    event!(Level::DEBUG, "Received the Get Messages Request");
+    let response: messages::GetChatMessagesResponse;
+    response = build_get_messages_response();
+
+    event!(Level::DEBUG, "Sending the response");
+    response_json(response)
+}
+
+async fn handle_post_chat_message
+(
+    payload: String
+) -> (StatusCode, String) {
+
+    // Attempt to deserialize the request paylod.
+    event!(Level::DEBUG, "Received new message request: {}", payload);
+
+    let request = messages::SendChatMessageRequest::from_string(payload);
+    
+    let num = rand::thread_rng().gen_range(0..2);
+    
+    match num {
+        // 204 Successful case.
+        0 => {
+            event!(Level::DEBUG, "{}", serde_json::to_string("Hello").unwrap());
+            (StatusCode::NO_CONTENT, serde_json::to_string("Hello").unwrap())
+        },
+        // 400 Bad Request case.
+        1 => {
+            let body = messages::ErrorCode400 {
+                fieldErrors: vec![messages::FieldErrorSchema {
+                    fieldName:          String::from("roomName"),
+                    message:            String::from("Room name not found"),
+                    messageArguments:   [String::from("I don't know what to put here")],
+                    messageCode:        String::from("I don't know what to put here"),
+                    rejectedValue:      String::from(request.roomName)
+                }],
+                ..Default::default()
+            };
+
+            event!(Level::DEBUG, "{}", serde_json::to_string(&body).unwrap());
+            (StatusCode::BAD_REQUEST, serde_json::to_string(&body).unwrap())
+        },
+        // 429 Rate Exceeded case.
+        _ => {
+            event!(Level::DEBUG, "{}", serde_json::to_string("Hello 2").unwrap());
+            (StatusCode::TOO_MANY_REQUESTS, serde_json::to_string("Hello 2").unwrap())
+        },
+    }
+
+}
+
+
+
 /*
  * This struct describes the possible arguments accepted by the
  * WebSocket-TestServer service.
@@ -242,21 +300,6 @@ impl Args {
     }
 }
 
-async fn handle_users() -> response_json<GetChatMessagesResponse> {
-    event!(Level::DEBUG, "Received the Get Messages Request");
-    let response: messages::GetChatMessagesResponse;
-    response = build_get_messages_response();
-
-    event!(Level::DEBUG, "Sending the response");
-    response_json(response)
-}
-
-async fn handle_post_chat_message(extract_json(payload): extract_json<SendChatMessageRequest>) {
-
-    // Attempt to deserialize the request paylod.
-    event!(Level::DEBUG, "Received new message request: {}", payload);
-}
-
 #[tokio::main]
 //-> Result<(), Box<dyn std::error::Error + Send + Sync>>
 async fn main()  {
@@ -270,16 +313,18 @@ async fn main()  {
 
     // Construct the address string we're going to serve from.
     let serve_address: String = format!("{}:{}", args.client_serve_ip, args.client_port);
+    event!(Level::DEBUG, "Hosting at {}", serve_address);
 
 
     let test_route = Router::new()
         .route(MESSAGES_ROUTE, get(handle_users))
         .route(NEW_MESSAGE_ROUTE, post(handle_post_chat_message));
 
-
+    
     let axum_listener = tokio::net::TcpListener::bind(serve_address).await.unwrap();
 
-    axum::serve(axum_listener, test_route).await.unwrap();
+    event!(Level::DEBUG, "Serving requests...");
+    axum::serve(axum_listener, test_route).await;
 
 
 
