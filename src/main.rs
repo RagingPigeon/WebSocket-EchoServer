@@ -274,7 +274,10 @@ async fn handle_post_chat_message
 
 }
 
-
+async fn handle_public_key_request() -> String {
+    event!(Level::DEBUG, "Received the Get Public Key Request");
+    String::from("{\"realm\":\"fmv\",\"public_key\":\"MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAzq/jsj5MTmOA9sW4YBJpv16yLPvznKLj3UqNXQ17WhukP5wu6GQyHMUSqNV8CAqGEA8TJpoQcpTCs8iaKxpfF1yORKdeuvCa/aJZpOw6TwsJZa1OWLONyJnOuPeZZNDUn+D7as+tS9ws7UP3AtROO8hkMS7+B3C90eXTWhZnkzEDSfDmfUxPMvYH/5yGUI4AtzbAGPMwiDOXOguXUSkV5TP7RXTZqrgHp3yvzBsbaWtjW9r4tfzXRHuGFXhlEgBdsBIzupaXrpfqIjHQXDhJ1NnI6KOQUTDi5t3VOhfZ8z6WXMPdqi/pvyzTenAshvoTR2rEti6KyLqwTdW6y1KFVQIDAQAB\",\"token-service\":\"https://app.fmvedgeview.net/keycloak/auth/realms/fmv/protocol/openid-connect\",\"account-service\":\"https://app.fmvedgeview.net/keycloak/auth/realms\"}")
+} // end handle_public_key_request
 
 /*
  * This struct describes the possible arguments accepted by the
@@ -318,7 +321,8 @@ async fn main()  {
 
     let test_route = Router::new()
         .route(MESSAGES_ROUTE, get(handle_users))
-        .route(NEW_MESSAGE_ROUTE, post(handle_post_chat_message));
+        .route(NEW_MESSAGE_ROUTE, post(handle_post_chat_message))
+        .route("/auth/realms/fmv", get(handle_public_key_request));
 
     
     let axum_listener = tokio::net::TcpListener::bind(serve_address).await.unwrap();
