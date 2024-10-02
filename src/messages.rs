@@ -1,33 +1,20 @@
+use serde::{ Deserialize, Serialize };
 use std::{
     collections::HashMap,
     fmt,
 };
-
-use chrono::{ DateTime, Utc };
-use http::status;
-
-//use strum::Display;
-use serde::{ Deserialize, Serialize };
 use strum_macros::{ EnumString, Display };
 use uuid::Uuid;
 
 const MAX_ERROR_ARGUMENTS: usize = 1;
-pub const DECIMAL_PLACES_IN_COORDINATE: usize = 2;
-pub const DECIMAL_PLACES_IN_REGION_BOUNDS: usize = 2;
 const COORDINATES_IN_POINT: usize = 2;
 const POINTS_IN_POLYGON: usize = 4;
 pub const MAX_REGIONS: usize = 1;
 pub const MAX_REGION_BOUNDS: usize = 4;
 pub const MAX_MESSAGE_GEOTAGS: usize = 1;
-const MAX_DOMAINS: usize = 10;
-const MAX_STATUS_DETAILS: usize = 100;
-const MAX_ROOM_SEARCH_RESPONSE_ITEMS: usize = 100;
 
 // Classification strings
 pub const UNCLASSIFIED_STRING: &str = "UNCLASSIFIED";
-
-
-pub const HTTP_CREATE_MESSAGE_URL: &str = "/api/chatserver/message";
 
 // =============================================================================
 // Error Messages
@@ -52,10 +39,6 @@ impl Default for FieldErrorSchema {
             rejectedValue:      String::new(),
         }
     }
-}
-
-impl FieldErrorSchema {
-    
 }
 
 #[allow(non_snake_case)]
@@ -100,19 +83,11 @@ impl ErrorCode400 {
     }
 }
 
-pub struct ErrorCode404 {
-    classification: String,
-    code:           i32,
-    message:        String
-}
-
 // =============================================================================
 // General Messages
-pub struct ChatSurferFailure {
-
-}
 
 /// This enum lists the possible values for a Domain's network ID.
+#[allow(non_camel_case_types)]
 #[derive(Debug, PartialEq, EnumString, Display)]
 pub enum NetworkId {
     #[strum(serialize = "bices")]
@@ -131,6 +106,7 @@ pub enum NetworkId {
     unclass,
 }
 
+#[allow(non_camel_case_types)]
 #[derive(Debug, PartialEq, EnumString, Display)]
 pub enum JoinStatus {
     #[strum(serialize = "JOINED")]
@@ -181,14 +157,6 @@ impl LocationCoordinatesSchema {
 
         // Return the newly constructed polygon.
         polygon
-    }
-
-    pub fn new() -> LocationCoordinatesSchema {
-        LocationCoordinatesSchema {
-            r#type: LocationType::Point,
-            point_coordinates: [0.0; COORDINATES_IN_POINT],
-            polygon_coordinates: [[0.0; COORDINATES_IN_POINT]; POINTS_IN_POLYGON]
-        }
     }
 
     pub fn init(seed: f32, r#type: &LocationType) -> LocationCoordinatesSchema {
@@ -347,34 +315,6 @@ impl fmt::Display for LocationSchema {
 }
 
 impl LocationSchema {
-    /*
-     * This method constructs a new LocationSchema object using default
-     * values.  Both the "point_coordinates" and "polygon_coordinates" arrays
-     * in the LocationCoordinatesSchema field will be populated with the same
-     * default value.
-     * The LocationType field will be initialized to the Point value.
-     */
-    pub fn new() -> LocationSchema {
-        LocationSchema {
-            coordinates:    LocationCoordinatesSchema::new(),
-            r#type:         LocationType::Point
-        }
-    }
-
-    /*
-     * This method constructs a new LocationSchema object using the
-     * LocationType value specified by the "new_type" parameter.
-     * Both the "point_coordinates" and "polygon_coordinates" arrays
-     * in the LocationCoordinatesSchema field will be populated with the same
-     * default value.
-     */
-    pub fn from_type(new_type: LocationType) -> LocationSchema {
-        LocationSchema {
-            coordinates:    LocationCoordinatesSchema::init(0.0, &new_type),
-            r#type:         new_type
-        }
-    }
-
     pub fn init
     (
         coord_value:    f32,
@@ -418,19 +358,6 @@ impl fmt::Display for RegionSchema {
 }
 
 impl RegionSchema {
-    /*
-     * This method constructs a new RegionSchema object with default values.
-     */
-    pub fn new() -> RegionSchema {
-        RegionSchema {
-            abbreviation:   String::from(""),
-            bounds:         [0.0; MAX_REGION_BOUNDS],
-            description:    String::from(""),
-            name:           String::from(""),
-            regionType:     String::from(""),
-        }
-    }
-
     /*
      * This method constructs a new RegionSchema object for testing using the
      * given floating point value as an initial value.
@@ -516,12 +443,6 @@ impl ChatMessageSchema {
     }
 }
 
-pub struct ScrubbedChatMessage {
-    classification: String,
-    messageId:      Uuid,
-    scrubDate:      DateTime<Utc>
-}
-
 // =============================================================================
 // struct GetChatMessagesResponse
 // =============================================================================
@@ -539,62 +460,9 @@ impl fmt::Display for GetChatMessagesResponse {
 }
 
 impl GetChatMessagesResponse {
-    pub fn new() -> GetChatMessagesResponse {
-        GetChatMessagesResponse {
-            classification: String::from(UNCLASSIFIED_STRING),
-            messages:       Vec::new()
-        }
-    }
     pub fn to_json(&self) -> String {
         serde_json::to_string(self).unwrap()
     }
-}
-
-// =============================================================================
-// Domain Messages
-#[derive(Serialize, Deserialize)]
-pub struct ChatDomainSchema {
-    classification: String,
-    id:             String,
-    name:           String,
-    networkId:      String
-}
-
-pub struct GetChatDomainsResponse {
-    classification: String,
-    domains:        [ChatDomainSchema; MAX_DOMAINS]
-}
-
-// =============================================================================
-// Room Messages
-
-#[allow(non_snake_case)]
-pub struct RoomSearchResponseRoomItemSchema {
-    classification:         String,
-    description:            String,
-    displayName:            String,
-    domainAbbreviation:     String,
-    domainId:               String,
-    domainName:             String,
-    firstJoinedDate:        DateTime<Utc>,
-    firstSeenDate:          DateTime<Utc>,
-    isMembersOnly:          bool,
-    isPasswordProtected:    bool,
-    isPersistent:           bool,
-    joinStatus:             JoinStatus,
-    lastJoinedDate:         DateTime<Utc>,
-    lastSeenDate:           DateTime<Utc>,
-    networkId:              String,
-    roomName:               String,
-    statusDetail:           [String; MAX_STATUS_DETAILS],
-    topic:                  String
-}
-
-#[allow(non_snake_case)]
-pub struct SearchRoomsResponse {
-    classification: String,
-    rooms:          [RoomSearchResponseRoomItemSchema; MAX_ROOM_SEARCH_RESPONSE_ITEMS],
-    totalRoomCount: i64
 }
 
 // #############################################################################
@@ -629,7 +497,7 @@ impl KeywordFilter {
     pub fn to_json(&self) -> String {
         serde_json::to_string(self).unwrap()
     }
-}
+} // end KeywordFilter
 
 // =============================================================================
 // struct MentionFilter
@@ -639,6 +507,14 @@ pub enum MentionType {
     USER,
 }
 
+/*
+ * This struct contains fields for searching for chat messages that
+ * contain identifiers of mentioned users.
+ * 
+ * We allow non-snake case names so that these fields can match those
+ * in the ChatSurfer API.
+ */
+#[allow(non_snake_case)]
 #[derive(Serialize, Deserialize)]
 pub struct Mention {
     pub mentionType:    MentionType,
@@ -655,14 +531,6 @@ pub struct MentionFilter {
 #[derive(Serialize, Deserialize)]
 pub struct DomainFilterProperties {
     pub properties: Vec<String>,
-}
-
-impl DomainFilterProperties {
-    pub fn from_vec(new_properties: Vec<String>) -> DomainFilterProperties {
-        DomainFilterProperties {
-            properties: new_properties
-        }
-    }
 }
 
 #[derive(Serialize, Deserialize)]
@@ -726,6 +594,14 @@ pub struct SortFilter {
 // =============================================================================
 // struct ThreadIdFilter
 // =============================================================================
+/*
+ * This struct contains fields for filtering chat message searches
+ * based on the message thread those messages belong to.
+ * 
+ * We allow non-snake case names so that these fields can match those
+ * in the ChatSurfer API.
+ */
+#[allow(non_snake_case)]
 #[derive(Serialize, Deserialize)]
 pub struct ThreadIdFilter {
     pub threadIds:  Vec<String>,
@@ -741,7 +617,11 @@ pub struct ThreadIdFilter {
  * Each field in this struct is considered an optional parameter from
  * ChatSurfer's perspective.  So when determining the validity of a search
  * request, these fields should be allowed to be ignored.
+ * 
+ * We allow non-snake case names so that these fields can match those
+ * in the ChatSurfer API.
  */
+#[allow(non_snake_case)]
 #[derive(Serialize, Deserialize)]
 pub struct TimeFilterRequest {
     endDateTime:        Option<String>, //This string needs to be in DateTime format.
@@ -782,6 +662,10 @@ impl TimeFilterRequest {
 // =============================================================================
 // struct UserIdFilter
 // =============================================================================
+
+// We allow non-snake case names so that these fields can match those
+// in the ChatSurfer API.
+#[allow(non_snake_case)]
 #[derive(Serialize, Deserialize)]
 pub struct UserIdFilter {
     pub userIds:    Vec<String>,
@@ -790,6 +674,10 @@ pub struct UserIdFilter {
 // =============================================================================
 // struct SearchChatMessagesRequest
 // =============================================================================
+
+// We allow non-snake case names so that these fields can match those
+// in the ChatSurfer API.
+#[allow(non_snake_case)]
 #[derive(Serialize, Deserialize)]
 pub struct SearchChatMessagesRequest {
     pub cursor:             Option<String>,
@@ -842,13 +730,8 @@ impl fmt::Display for SearchChatMessagesRequest {
 }
 
 impl SearchChatMessagesRequest {
-    
     pub fn from_string(json: String) -> SearchChatMessagesRequest {
         serde_json::from_str(&json.as_str()).unwrap()
-    }
-    
-    pub fn from_str(json: &str) -> SearchChatMessagesRequest {
-        serde_json::from_str(json).unwrap()
     }
 
     /*
@@ -863,13 +746,17 @@ impl SearchChatMessagesRequest {
 #[derive(Serialize, Deserialize)]
 pub enum SearchChatMessagesResponseTypes {
     Success200 { status_code: u16, body: SearchChatMessagesResponse },
-    Failure400 { error: ErrorCode400 },
+    Failure400 { status_code: u16, error: ErrorCode400 },
     Failure429 { status_code: u16 }
 }
 
 // =============================================================================
 // struct TimeFilterResponse
 // =============================================================================
+
+// We allow non-snake case names so that these fields can match those
+// in the ChatSurfer API.
+#[allow(non_snake_case)]
 #[derive(Serialize, Deserialize)]
 pub struct TimeFilterResponse {
     pub endDateTime:    String,
@@ -878,6 +765,10 @@ pub struct TimeFilterResponse {
 // =============================================================================
 // struct SearchChatMessagesResponse
 // =============================================================================
+
+// We allow non-snake case names so that these fields can match those
+// in the ChatSurfer API.
+#[allow(non_snake_case)]
 #[derive(Serialize, Deserialize)]
 pub struct SearchChatMessagesResponse {
     pub classification:     String,
@@ -910,6 +801,10 @@ impl SearchChatMessagesResponse {
 // =============================================================================
 // struct SendChatMessageRequest
 // =============================================================================
+
+// We allow non-snake case names so that these fields can match those
+// in the ChatSurfer API.
+#[allow(non_snake_case)]
 #[derive(Serialize, Deserialize)]
 pub struct SendChatMessageRequest {
     pub classification: String,
@@ -946,18 +841,8 @@ impl fmt::Display for SendChatMessageRequest {
 }
 
 impl SendChatMessageRequest {
-    /*
-     * This constant represents the HTTP status code that ChatSurfer returns
-     * upon a successful Create Chat Message operation.
-     */
-    pub const SUCCESSFUL: http::status::StatusCode = status::StatusCode::NO_CONTENT;
-    
     pub fn from_string(json: String) -> SendChatMessageRequest {
         serde_json::from_str(&json.as_str()).unwrap()
-    }
-    
-    pub fn from_str(json: &str) -> SendChatMessageRequest {
-        serde_json::from_str(json).unwrap()
     }
 
     /*
@@ -987,11 +872,5 @@ impl fmt::Display for CreateMessageResponse {
                 write!(f, "{}", status_code)
             }
         }
-    }
-}
-
-impl CreateMessageResponse {
-    pub fn to_json(&self) -> String {
-        serde_json::to_string(self).unwrap()
     }
 }

@@ -1,57 +1,23 @@
-// General and standard crates
-use chrono::{ Date, DateTime, Utc };
-use clap::Parser;
-use futures::{SinkExt, StreamExt};
-use rand::prelude::*;
-use rand::Rng;
-use std::str::FromStr;
-use std::{any, convert::Infallible, io, net::SocketAddr};
-use std:: {
-    io::{ prelude::*, BufReader },
-    net::TcpStream,
-    //net::TcpListener,
-};
-use uuid::Uuid;
-
-// Logging crates
-use tracing::{event, span, Level};
-use tracing_subscriber;
-
-// HTTP crates
+mod messages;
 use axum::{
-    extract::Json as extract_json,
-    handler::Handler,
     response::Json as response_json,
     Router,
     routing::get,
     routing::post,
 };
-use http_body_util::{
-    combinators::BoxBody,
-    BodyExt,
-    Empty,
-    Full
-};
-use hyper::{
-    body::Bytes,
-    body::Frame,
-    Method,
-    Request,
-    Response,
-    server::conn::http1,
-    service::service_fn,
-    StatusCode,
-};
-use hyper_util::rt::TokioIo;
-use tokio::net::TcpListener;
-
-// Project-specific crates
-mod messages;
-
+use chrono::Utc;
+use clap::Parser;
+use hyper::StatusCode;
 use messages::{
-    ChatMessageSchema, GeoTagSchema, GetChatMessagesResponse, LocationCoordinatesSchema, LocationSchema, LocationType, RegionSchema, SearchChatMessagesRequest,
-    SendChatMessageRequest,
+    ChatMessageSchema,
+    GetChatMessagesResponse,
+    RegionSchema,
+    TimeFilterResponse,
 };
+use rand::Rng;
+use tracing::{event, Level};
+use tracing_subscriber;
+use uuid::Uuid;
 
 pub const WS_UNCLASSIFIED_URL: &str = "wss://localhost:3030/root";
 pub const DEFAULT_SERVE_IP: &str = "0.0.0.0";
@@ -62,6 +28,7 @@ pub const TEST_DOMAIN_ID: &str = "chatsurferxmppunclass";
 
 pub const MESSAGES_ROUTE: &str = "/api/chat/messages/chatsurferxmppunclass/Test_Room";
 pub const NEW_MESSAGE_ROUTE: &str = "/api/chatserver/message";
+pub const SEARCH_MESSAGES_ROUTE: &str = "/api/chat/messages/search";
 
 
 fn build_region_array
@@ -133,7 +100,11 @@ fn build_chat_message
 fn build_get_messages_response() -> messages::GetChatMessagesResponse {
     let mut messages = Vec::new();
 
-    messages.push(build_chat_message(25, "Austin", ""));
+    messages.push(build_chat_message(
+        25,
+        "Austin",
+        ""
+    ));
     messages.push(build_chat_message(4, "Tyler", ""));
     messages.push(build_chat_message(7, "Joe", "test_keyword"));
     messages.push(build_chat_message(9, "Jeremy", ""));
@@ -152,74 +123,24 @@ fn build_get_messages_response() -> messages::GetChatMessagesResponse {
 }
 
 
-fn empty() -> BoxBody<Bytes, hyper::Error> {
-    Empty::<Bytes>::new()
-        .map_err(|never| match never {})
-        .boxed()
-}
 
+fn search_messages(keywords: String) -> Vec<ChatMessageSchema> {
+    let mut search_results: Vec<ChatMessageSchema> = Vec::new();
 
+    let mut split_keywords: Vec<&str> = keywords.split(" ").collect();
+    split_keywords.retain(|&x| x != "");
+    event!(Level::DEBUG, "{:?}", split_keywords);
 
+    let messages = build_get_messages_response().messages;
 
-
-async fn request_handler(req: Request<hyper::body::Incoming>) -> Result<Response<BoxBody<Bytes, hyper::Error>>, hyper::Error> {
-    
-    let response: messages::GetChatMessagesResponse;
-
-    
-    match (req.method(), req.uri().path()) {
-        (&Method::GET, "/api/chat/messages/somedomain/Test_Room") => {
-            event!(Level::DEBUG, "Caught the GET Request");
-
-            // Construct a test chat message object to send back to the client.
-            response = build_get_messages_response();
-
-            let message_json = serde_json::to_string(&response).unwrap();
-
-            let boxed = Full::new(message_json.into())
-                .map_err(|never| match never {})
-                .boxed();
-            
-            Ok(Response::new(boxed))
-        }
-        (&Method::POST, "/api/chat/messages/search") => {
-            event!(Level::DEBUG, "Caught the POST Request");
-
-            //let whole_body = req.body().collect().await?.to_bytes();
-
-            //let (head, body, _tail) = unsafe { whole_body.align_to::<SearchChatMessagesRequest>() };
-
-            //let search_request: SearchChatMessagesRequest = body[0];
-            //event!(Level::DEBUG, "Search request: {}", search_request);
-
-
-
-            //Construct test chat message objects to send back to the client.
-            response = build_get_messages_response();
-
-            let trimmed_response: messages::GetChatMessagesResponse = GetChatMessagesResponse::new();
-
-            for message in response.messages {
-                //if message.text.contains(req.k)
-            }
-
-            
-            let boxed = Full::new(String::from("Unimplemented").into())
-            .map_err(|never| match never {})
-            .boxed();
-        
-        Ok(Response::new(boxed))
-        }
-        _ => {
-            event!(Level::DEBUG, "NOT FOUND");
-            let mut not_found = Response::new(empty());
-            *not_found.status_mut() = StatusCode::NOT_FOUND;
-
-            Ok(not_found)
+    for message in messages {
+        if message.text.contains(split_keywords.first().unwrap()) {
+            search_results.push(message);
         }
     }
-}
 
+    search_results
+}
 
 
 async fn handle_users() -> response_json<GetChatMessagesResponse> {
@@ -237,9 +158,9 @@ async fn handle_post_chat_message
 ) -> (StatusCode, String) {
 
     // Attempt to deserialize the request paylod.
-    event!(Level::DEBUG, "Received new message request: {}", payload);
+    let request = messages::SendChatMessageRequest::from_string(payload.clone());
+    event!(Level::DEBUG, "Received new message request from {}: {}", request.nickname, payload);
 
-    let request = messages::SendChatMessageRequest::from_string(payload);
     
     let num = rand::thread_rng().gen_range(0..2);
     
@@ -271,8 +192,68 @@ async fn handle_post_chat_message
             (StatusCode::TOO_MANY_REQUESTS, serde_json::to_string("Hello 2").unwrap())
         },
     }
-
 }
+
+async fn handle_search_messages
+(
+    payload: String
+) -> (StatusCode, String) {
+
+    // Attempt to deserialize the request paylod.
+    event!(Level::DEBUG, "Received Search Messages request: {}", payload);
+
+    let request = messages::SearchChatMessagesRequest::from_string(payload);
+    
+    //let num = rand::thread_rng().gen_range(0..2);
+    let num = 0;
+    
+    match num {
+        // 200 Successful case.
+        0 => {
+            let search_results = search_messages(request.keywordFilter.unwrap().query);
+            let total: i32 = search_results.len() as i32;
+
+            let body = messages::SearchChatMessagesResponse {
+                classification:     String::from(UNCLASSIFIED_STRING),
+                messages:           Some(search_results),
+                nextCursorMark:     None,
+                searchTimeFiler:    TimeFilterResponse {
+                    endDateTime:    Utc::now().to_rfc3339()
+                },
+                total:              total,
+            };
+
+
+            event!(Level::DEBUG, "{}", serde_json::to_string(&body).unwrap());
+            (StatusCode::OK, serde_json::to_string(&body).unwrap())
+        },
+        // 400 Bad Request case.
+        1 => {
+            let body = messages::ErrorCode400 {
+                classification: String::from(UNCLASSIFIED_STRING),
+                code:           400,
+
+                fieldErrors:    vec![messages::FieldErrorSchema {
+                    fieldName:          String::from("keywordFilter"),
+                    message:            String::from("'*' or '?' not allowed as first character of a term"),
+                    messageArguments:   [String::from("I don't know what to put here")],
+                    messageCode:        String::from("ChatMessageSearchQueryStringIsInvalid"),
+                    rejectedValue:      String::from("**")
+                }],
+
+                message:        String::from("The request contained 1 or more field validation errors."),
+            };
+
+            event!(Level::DEBUG, "{}", serde_json::to_string(&body).unwrap());
+            (StatusCode::BAD_REQUEST, serde_json::to_string(&body).unwrap())
+        },
+        // 429 Rate Exceeded case.
+        _ => {
+            event!(Level::DEBUG, "{}", serde_json::to_string("Rate Exceeded").unwrap());
+            (StatusCode::TOO_MANY_REQUESTS, serde_json::to_string("Rate Exceeded").unwrap())
+        },
+    }
+} // end handle_search_messages
 
 async fn handle_public_key_request() -> String {
     event!(Level::DEBUG, "Received the Get Public Key Request");
@@ -322,13 +303,20 @@ async fn main()  {
     let test_route = Router::new()
         .route(MESSAGES_ROUTE, get(handle_users))
         .route(NEW_MESSAGE_ROUTE, post(handle_post_chat_message))
+        .route(SEARCH_MESSAGES_ROUTE, post(handle_search_messages))
         .route("/auth/realms/fmv", get(handle_public_key_request));
 
     
     let axum_listener = tokio::net::TcpListener::bind(serve_address).await.unwrap();
 
-    event!(Level::DEBUG, "Serving requests...");
-    axum::serve(axum_listener, test_route).await;
+    match axum::serve(axum_listener, test_route).await {
+        Ok(()) => {
+            event!(Level::DEBUG, "Serving requests...");
+        }
+        Err(e) => {
+            event!(Level::ERROR, "Error in the Axum server: {}" , e);
+        }
+    }
 
 
 
