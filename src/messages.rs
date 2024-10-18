@@ -83,6 +83,37 @@ impl ErrorCode400 {
     }
 }
 
+// #############################################################################
+// #############################################################################
+//                              API Key Messages
+// #############################################################################
+// #############################################################################
+
+#[derive(Serialize, Deserialize)]
+#[derive(Debug, PartialEq, EnumString, Display)]
+pub enum ApiKeyStatus {
+    #[strum(serialize = "ACTIVE")]
+    ACTIVE,
+    #[strum(serialize = "DISABLED")]
+    DISABLED,
+    #[strum(serialize = "PENDING")]
+    PENDING,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct GetApiResponse {
+    pub classification: String,
+    
+    // The Distinguished Name of the certificate used to
+    // create the API key.
+    pub dn:             String,
+    pub email:          String,
+    pub key:            String,
+
+    // The status of the API Key.
+    pub status:         ApiKeyStatus,
+}
+
 // =============================================================================
 // General Messages
 

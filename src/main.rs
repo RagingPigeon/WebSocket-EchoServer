@@ -1,5 +1,6 @@
 mod messages;
 use axum::{
+    http::header::HeaderMap,
     response::Json as response_json,
     Router,
     routing::get,
@@ -10,9 +11,10 @@ use clap::Parser;
 use hyper::StatusCode;
 use messages::{
     ChatMessageSchema,
+    GetApiResponse,
     GetChatMessagesResponse,
     RegionSchema,
-    TimeFilterResponse,
+    TimeFilterResponse
 };
 use rand::Rng;
 use tracing::{event, Level};
@@ -26,7 +28,8 @@ pub const DEFAULT_SERVE_PORT: i32 = 80;
 pub const UNCLASSIFIED_STRING: &str = "UNCLASSIFIED";
 pub const TEST_DOMAIN_ID: &str = "chatsurferxmppunclass"; 
 
-pub const MESSAGES_ROUTE: &str = "/api/chat/messages/chatsurferxmppunclass/Test_Room";
+pub const GET_API_KEY_ROUTE: &str = "/api/auth/key";
+pub const MESSAGES_ROUTE: &str = "/api/chat/messages/chatsurferxmppunclass/edge-view-test-room";
 pub const NEW_MESSAGE_ROUTE: &str = "/api/chatserver/message";
 pub const SEARCH_MESSAGES_ROUTE: &str = "/api/chat/messages/search";
 
@@ -142,20 +145,52 @@ fn search_messages(keywords: String) -> Vec<ChatMessageSchema> {
     search_results
 }
 
+async fn handle_get_api_key() -> (StatusCode, String) {
 
-async fn handle_users() -> response_json<GetChatMessagesResponse> {
+    // Attempt to deserialize the request paylod.
+    event!(Level::DEBUG, "Received Get API Key Request");
+
+    let response: GetApiResponse = GetApiResponse {
+        classification: String::from(UNCLASSIFIED_STRING),
+        dn:             String::from("CN=Austin,O=Nine Hill Technology,ST=New York,C=US"),
+        email:          String::from("austin.farrell@ninehilltech.com"),
+        key:            String::from("a7B5siy9xY1dmN"),
+        status:         messages::ApiKeyStatus::ACTIVE,
+    };
+
+    (StatusCode::OK, serde_json::to_string(&response).unwrap())
+} // end handle_get_api_key
+
+async fn handle_get_messages
+(
+    headers:    HeaderMap,
+) -> (StatusCode, String) {
     event!(Level::DEBUG, "Received the Get Messages Request");
+
+    if headers.contains_key("api-key") {
+        let key_value = headers.get("api-key").unwrap();
+        event!(Level::DEBUG, "{}", key_value.to_str().unwrap())
+    }
+
     let response: messages::GetChatMessagesResponse;
     response = build_get_messages_response();
 
     event!(Level::DEBUG, "Sending the response");
-    response_json(response)
+
+    (StatusCode::OK, serde_json::to_string(&response).unwrap())
 }
 
 async fn handle_post_chat_message
 (
-    payload: String
+    headers:    HeaderMap,
+    payload:    String,
 ) -> (StatusCode, String) {
+
+    if headers.contains_key("api-key") {
+        let key_value = headers.get("api-key").unwrap();
+        event!(Level::DEBUG, "{}", key_value.to_str().unwrap())
+    }
+
 
     // Attempt to deserialize the request paylod.
     let request = messages::SendChatMessageRequest::from_string(payload.clone());
@@ -196,11 +231,17 @@ async fn handle_post_chat_message
 
 async fn handle_search_messages
 (
-    payload: String
+    headers:    HeaderMap,
+    payload:    String
 ) -> (StatusCode, String) {
 
     // Attempt to deserialize the request paylod.
     event!(Level::DEBUG, "Received Search Messages request: {}", payload);
+
+    if headers.contains_key("api-key") {
+        let key_value = headers.get("api-key").unwrap();
+        event!(Level::DEBUG, "{}", key_value.to_str().unwrap())
+    }
 
     let request = messages::SearchChatMessagesRequest::from_string(payload);
     
@@ -301,7 +342,8 @@ async fn main()  {
 
 
     let test_route = Router::new()
-        .route(MESSAGES_ROUTE, get(handle_users))
+        .route(GET_API_KEY_ROUTE, get(handle_get_api_key))
+        .route(MESSAGES_ROUTE, get(handle_get_messages))
         .route(NEW_MESSAGE_ROUTE, post(handle_post_chat_message))
         .route(SEARCH_MESSAGES_ROUTE, post(handle_search_messages))
         .route("/auth/realms/fmv", get(handle_public_key_request));
