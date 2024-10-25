@@ -125,8 +125,6 @@ fn build_get_messages_response() -> messages::GetChatMessagesResponse {
     }
 }
 
-
-
 fn search_messages(keywords: String) -> Vec<ChatMessageSchema> {
     let mut search_results: Vec<ChatMessageSchema> = Vec::new();
 
@@ -197,7 +195,8 @@ async fn handle_post_chat_message
     event!(Level::DEBUG, "Received new message request from {}: {}", request.nickname, payload);
 
     
-    let num = rand::thread_rng().gen_range(0..2);
+    //let num = rand::thread_rng().gen_range(0..2);
+    let num = 0;
     
     match num {
         // 204 Successful case.
@@ -298,7 +297,7 @@ async fn handle_search_messages
 
 async fn handle_public_key_request() -> String {
     event!(Level::DEBUG, "Received the Get Public Key Request");
-    String::from("{\"realm\":\"fmv\",\"public_key\":\"MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAzq/jsj5MTmOA9sW4YBJpv16yLPvznKLj3UqNXQ17WhukP5wu6GQyHMUSqNV8CAqGEA8TJpoQcpTCs8iaKxpfF1yORKdeuvCa/aJZpOw6TwsJZa1OWLONyJnOuPeZZNDUn+D7as+tS9ws7UP3AtROO8hkMS7+B3C90eXTWhZnkzEDSfDmfUxPMvYH/5yGUI4AtzbAGPMwiDOXOguXUSkV5TP7RXTZqrgHp3yvzBsbaWtjW9r4tfzXRHuGFXhlEgBdsBIzupaXrpfqIjHQXDhJ1NnI6KOQUTDi5t3VOhfZ8z6WXMPdqi/pvyzTenAshvoTR2rEti6KyLqwTdW6y1KFVQIDAQAB\",\"token-service\":\"https://app.fmvedgeview.net/keycloak/auth/realms/fmv/protocol/openid-connect\",\"account-service\":\"https://app.fmvedgeview.net/keycloak/auth/realms\"}")
+    String::from("{\"realm\":\"fmv\",\"public_key\":\"MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAzq/jsj5MTmOA9sW4YBJpv16yLPvznKLj3UqNXQ17WhukP5wu6GQyHMUSqNV8CAqGEA8TJpoQcpTCs8iaKxpfF1yORKdeuvCa/aJZpOw6TwsJZa1OWLONyJnOuPeZZNDUn+D7as+tS9ws7UP3AtROO8hkMS7+B3C90eXTWhZnkzEDSfDmfUxPMvYH/5yGUI4AtzbAGPMwiDOXOguXUSkV5TP7RXTZqrgHp3yvzBsbaWtjW9r4tfzXRHuGFXhlEgBdsBIzupaXrpfqIjHQXDhJ1NnI6KOQUTDi5t3VOhfZ8z6WXMPdqi/pvyzTenAshvoTR2rEti6KyLqwTdW6y1KFVQIDAQAB\",\"token-service\":\"https://app.fmvedgeview.net/keycloak/auth/realms/fmv/protocol/openid-connect\",\"account-service\":\"https://app.fmvedgeview.net/keycloak/auth/realms\",\"tokens-not-before\":0}")
 } // end handle_public_key_request
 
 /*
