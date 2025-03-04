@@ -37,7 +37,7 @@ use uuid::Uuid;
 
 pub const WS_UNCLASSIFIED_URL: &str = "wss://localhost/root";
 pub const DEFAULT_SERVE_IP: &str = "0.0.0.0";
-pub const DEFAULT_SERVE_PORT: i32 = 80;
+pub const DEFAULT_SERVE_PORT: i32 = 443;
 
 pub const UNCLASSIFIED_STRING: &str = "UNCLASSIFIED";
 pub const TEST_ROOM_NAME: &str = "edge-view-test-room";
@@ -47,7 +47,7 @@ pub const TEST_KEYWORD: &str = "Antediluvian";
 pub const GET_API_KEY_ROUTE: &str = "/api/auth/key";
 pub const MESSAGES_ROUTE: &str = "/api/chat/messages/chatsurferxmppunclass/edge-view-test-room";
 pub const NEW_MESSAGE_ROUTE: &str = "/api/chatserver/message";
-pub const SEARCH_MESSAGES_ROUTE: &str = "/api/chat/messages/search";
+pub const SEARCH_MESSAGES_ROUTE: &str = "/api/chatsearch/messages/search";
 
 pub const WS_SINGLE_ROOM_ROUTE: &str = "/topic/chat-messages-room/chatsurferxmppunclass/edge-view-test-room";
 
@@ -169,7 +169,7 @@ async fn handle_get_api_key() -> (StatusCode, String) {
         dn:             String::from("CN=Austin,O=Nine Hill Technology,ST=New York,C=US"),
         email:          String::from("austin.farrell@ninehilltech.com"),
         key:            String::from("a7B5siy9xY1dmN"),
-        status:         serde_json::to_string(&messages::ApiKeyStatus::ACTIVE).unwrap(),
+        status:         serde_json::to_string(&messages::ApiKeyStatus::Active).unwrap(),
     };
 
     (StatusCode::OK, serde_json::to_string(&response).unwrap())
@@ -202,12 +202,10 @@ async fn handle_post_chat_message(
         let key_value = headers.get("api-key").unwrap();
         event!(Level::DEBUG, "{}", key_value.to_str().unwrap())
     }
-
-
+    
     // Attempt to deserialize the request paylod.
     let request = messages::SendChatMessageRequest::from_string(payload.clone());
     event!(Level::DEBUG, "Received new message request from {}: {}", request.nickname, payload);
-
     
     //let num = rand::thread_rng().gen_range(0..2);
     let num = 0;
@@ -221,13 +219,13 @@ async fn handle_post_chat_message(
         // 400 Bad Request case.
         1 => {
             let body = messages::ErrorCode400 {
-                field_errors: vec![messages::FieldErrorSchema {
-                    field_name:          String::from("roomName"),
-                    message:            String::from("Room name not found"),
-                    message_arguments:   vec!(String::from("I don't know what to put here")),
-                    message_code:        String::from("I don't know what to put here"),
-                    rejected_value:      String::from(request.room_name)
-                }],
+                // field_errors: vec![messages::FieldErrorSchema {
+                //     field_name:          String::from("roomName"),
+                //     message:            String::from("Room name not found"),
+                //     message_arguments:   vec!(String::from("I don't know what to put here")),
+                //     message_code:        String::from("I don't know what to put here"),
+                //     rejected_value:      String::from(request.room_name)
+                // }],
                 ..Default::default()
             };
 
@@ -269,9 +267,9 @@ async fn handle_search_messages(
             let body = messages::SearchChatMessagesResponse {
                 classification:     String::from(UNCLASSIFIED_STRING),
                 messages:           Some(search_results),
-                next_cursor_mark:     None,
-                search_time_filter:    TimeFilterResponse {
-                    end_date_time:    Utc::now().to_rfc3339()
+                next_cursor_mark:   None,
+                search_time_filter: TimeFilterResponse {
+                    end_date_time:  Utc::now().to_rfc3339()
                 },
                 total:              total,
             };
@@ -282,20 +280,37 @@ async fn handle_search_messages(
         },
         // 400 Bad Request case.
         1 => {
-            let body = messages::ErrorCode400 {
-                classification: String::from(UNCLASSIFIED_STRING),
-                code:           400,
+            // let body = messages::ErrorCode400 {
+            //     classification: String::from(UNCLASSIFIED_STRING),
+            //     code:           400,
 
-                field_errors:    vec![messages::FieldErrorSchema {
-                    field_name:          String::from("keywordFilter"),
-                    message:            String::from("'*' or '?' not allowed as first character of a term"),
-                    message_arguments:   vec!(String::from("I don't know what to put here")),
-                    message_code:        String::from("ChatMessageSearchQueryStringIsInvalid"),
-                    rejected_value:      String::from("**")
-                }],
+            //     field_errors:    vec![messages::FieldErrorSchema {
+            //         field_name:          String::from("keywordFilter"),
+            //         message:            String::from("'*' or '?' not allowed as first character of a term"),
+            //         message_arguments:   vec!(String::from("I don't know what to put here")),
+            //         message_code:        String::from("ChatMessageSearchQueryStringIsInvalid"),
+            //         rejected_value:      String::from("**")
+            //     }],
 
-                message:        String::from("The request contained 1 or more field validation errors."),
-            };
+            //     message:        String::from("The request contained 1 or more field validation errors."),
+            // };
+
+            // let body = messages::ErrorCode400 {
+            //     classification: String::from("SECRET//NOFORN"),
+            //     code:           400,
+
+            //     // field_errors:    vec![messages::FieldErrorSchema {
+            //     //     field_name:          String::from("keywordFilter"),
+            //     //     message:            String::from("'*' or '?' not allowed as first character of a term"),
+            //     //     message_arguments:   vec!(String::from("I don't know what to put here")),
+            //     //     message_code:        String::from("ChatMessageSearchQueryStringIsInvalid"),
+            //     //     rejected_value:      String::from("**")
+            //     // }],
+
+            //     message:        String::from("The request contained 1 or more field validation errors."),
+            // };
+            // let body = String::from("{\"classification\":\"SECRET//NOFORN\",\"code\":400,\"message\":\"Request body is missing or not readable.\"}");
+            let body = String::from("{\"classification\":\"SECRET//NOFORN\",\"code\":400,\"message\":\"Request body is missing or not readable.\"}");
 
             event!(Level::DEBUG, "{}", serde_json::to_string(&body).unwrap());
             (StatusCode::BAD_REQUEST, serde_json::to_string(&body).unwrap())
@@ -409,6 +424,7 @@ async fn main()  {
         .route(NEW_MESSAGE_ROUTE, post(handle_post_chat_message))
         .route(SEARCH_MESSAGES_ROUTE, post(handle_search_messages))
         .route(WS_SINGLE_ROOM_ROUTE, get(serve_ws_single_room_upgrade_handler))
+        .route("/connect", get(serve_ws_single_room_upgrade_handler))
         .route("/test", get(test));
 
     
